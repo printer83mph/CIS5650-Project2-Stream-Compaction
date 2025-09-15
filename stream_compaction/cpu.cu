@@ -1,4 +1,3 @@
-#include <cstdio>
 #include "cpu.cuh"
 
 #include "common.cuh"
@@ -65,12 +64,17 @@ namespace StreamCompaction {
             int *matchingMask = new int[n];
             int *scannedIndices = new int[n];
             for (int i = 0; i < n; ++i) {
-                matchingMask[i] = (bool)idata[i];
-                totalMatchingCount++;
+                if (idata[i]) {
+                    matchingMask[i] = 1;
+                    totalMatchingCount++;
+                }
             }
 
-            // Run ye olde scan
-            scan(n, scannedIndices, matchingMask);
+            // Run ye olde scan (without timer since we're already timing)
+            scannedIndices[0] = 0;
+            for (int i = 1; i < n; ++i) {
+                scannedIndices[i] = matchingMask[i - 1] + scannedIndices[i - 1];
+            }
 
             // Pull from input using scanned indices
             for (int i = 0; i < n; ++i) {
