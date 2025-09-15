@@ -19,7 +19,13 @@ namespace StreamCompaction {
          */
         void scan(int n, int *odata, const int *idata) {
             timer().startCpuTimer();
-            // TODO
+
+            // Ye olde iterative implementation
+            odata[0] = 0;
+            for (int i = 0; i < n; ++i) {
+                odata[i] = idata[i - 1] + odata[i - 1];
+            }
+
             timer().endCpuTimer();
         }
 
@@ -30,9 +36,19 @@ namespace StreamCompaction {
          */
         int compactWithoutScan(int n, int *odata, const int *idata) {
             timer().startCpuTimer();
-            // TODO
+
+            // Sequentially add up all nonzero input numbers in output array
+            int matchingCount = 0;
+            for (int j = 0; j < n; ++j) {
+                if (idata[j] == 0)
+                    continue;
+
+                odata[matchingCount] = idata[j];
+                matchingCount++;
+            }
+
             timer().endCpuTimer();
-            return -1;
+            return matchingCount;
         }
 
         /**
@@ -42,9 +58,33 @@ namespace StreamCompaction {
          */
         int compactWithScan(int n, int *odata, const int *idata) {
             timer().startCpuTimer();
-            // TODO
+
+            int totalMatchingCount = 0;
+
+            // Populate temp array with 0 if input is 0, 1 otherwise
+            int *matchingMask = new int[n];
+            int *scannedIndices = new int[n];
+            for (int i = 0; i < n; ++i) {
+                matchingMask[i] = (bool)idata[i];
+                totalMatchingCount++;
+            }
+
+            // Run ye olde scan
+            scan(n, scannedIndices, matchingMask);
+
+            // Pull from input using scanned indices
+            for (int i = 0; i < n; ++i) {
+                if (!matchingMask[i])
+                    continue;
+
+                odata[scannedIndices[i]] = idata[i];
+            }
+
+            delete[] matchingMask;
+            delete[] scannedIndices;
+
             timer().endCpuTimer();
-            return -1;
+            return totalMatchingCount;
         }
     }
 }
