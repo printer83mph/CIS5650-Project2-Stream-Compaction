@@ -41,6 +41,7 @@ CompileFlags:
   Add:
     # report all errors
     - "-ferror-limit=0"
+    - "-I/usr/local/cuda/include/cccl"
   Remove:
     # strip CUDA fatbin args
     - "-Xfatbin*"
