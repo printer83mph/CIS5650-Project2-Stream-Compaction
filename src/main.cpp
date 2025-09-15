@@ -147,7 +147,11 @@ int main(int argc, char* argv[]) {
     //printArray(count, c, true);
     printCmpLenResult(count, expectedNPOT, b, c);
 
+#ifdef _WIN32
     system("pause"); // stop Win32 console from closing on exit
+#else
+    system("read -n1 -r -p 'Press any key to continue...'");
+#endif
     delete[] a;
     delete[] b;
     delete[] c;
