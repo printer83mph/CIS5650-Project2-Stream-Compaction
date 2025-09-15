@@ -7,10 +7,10 @@
  */
 
 #include <cstdio>
-#include <stream_compaction/cpu.h>
-#include <stream_compaction/naive.h>
-#include <stream_compaction/efficient.h>
-#include <stream_compaction/thrust.h>
+#include <stream_compaction/cpu.cuh>
+#include <stream_compaction/naive.cuh>
+#include <stream_compaction/efficient.cuh>
+#include <stream_compaction/thrust.cuh>
 #include "testing_helpers.hpp"
 
 const int SIZE = 1 << 8; // feel free to change the size of array

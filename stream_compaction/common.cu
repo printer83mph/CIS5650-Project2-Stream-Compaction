@@ -1,4 +1,4 @@
-#include "common.h"
+#include "common.cuh"
 
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
     cudaError_t err = cudaGetLastError();

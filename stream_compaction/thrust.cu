@@ -3,8 +3,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/scan.h>
-#include "common.h"
-#include "thrust.h"
+#include "common.cuh"
+#include "thrust.cuh"
 
 namespace StreamCompaction {
     namespace Thrust {

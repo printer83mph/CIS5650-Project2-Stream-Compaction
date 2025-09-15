@@ -1,7 +1,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "common.h"
-#include "naive.h"
+#include "common.cuh"
+#include "naive.cuh"
 
 namespace StreamCompaction {
     namespace Naive {

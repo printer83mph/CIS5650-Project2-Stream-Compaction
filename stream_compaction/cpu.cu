@@ -1,7 +1,7 @@
 #include <cstdio>
-#include "cpu.h"
+#include "cpu.cuh"
 
-#include "common.h"
+#include "common.cuh"
 
 namespace StreamCompaction {
     namespace CPU {

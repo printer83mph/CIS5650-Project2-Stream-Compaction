@@ -1,7 +1,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "common.h"
-#include "efficient.h"
+#include "common.cuh"
+#include "efficient.cuh"
 
 namespace StreamCompaction {
     namespace Efficient {

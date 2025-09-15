@@ -1,9 +1,9 @@
 set(headers
-    "common.h"
-    "cpu.h"
-    "naive.h"
-    "efficient.h"
-    "thrust.h"
+    "common.cuh"
+    "cpu.cuh"
+    "naive.cuh"
+    "efficient.cuh"
+    "thrust.cuh"
     )
 
 set(sources
