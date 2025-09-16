@@ -1,7 +1,9 @@
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include "common.cuh"
 #include "efficient.cuh"
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+#define BLOCK_SIZE 256
 
 namespace StreamCompaction {
     namespace Efficient {
@@ -10,6 +12,48 @@ namespace StreamCompaction {
         {
             static PerformanceTimer timer;
             return timer;
+        }
+
+        /**
+         * Perform segmented addition scan on an array, separated into blocks.
+         *
+         * @param g_arrayToScan the full array, in global memory. This will be modified in-place.
+         *   This is expected to be of size `2^ilog2ceil(N)`, i.e. N or the next power of 2 from N.
+         *
+         * @param g_blockTotalSums where the full sums of each block will be saved.
+         *   It is expected to be of size `N / blockDim.x`.
+         */
+        __global__ void kernExclusiveScanByBlocks(int N, int *g_arrayToScan,
+                                                  int *g_blockTotalSums) {
+            int blockStartIndex = (blockIdx.x * blockDim.x);
+            int localThreadIndex = threadIdx.x;
+            int globalThreadIndex = blockStartIndex + localThreadIndex;
+
+            int maxDepth = ceil(log2(blockDim.x));
+
+            // Do awesome upsweep in-place with increasing depth
+            for (int d = 0; d < maxDepth; ++d) {
+                int halfChunk = 1 << d;
+                int fullChunk = halfChunk << 1;
+
+                // Each layer gets blockSize >> (d + 1) operations
+                int numThreads = blockDim.x / fullChunk;
+
+                if (localThreadIndex < numThreads) {
+                    // K is global index of first element of "chunk" we're operating on
+                    int globalK = blockStartIndex + blockStartIndex + localThreadIndex * fullChunk;
+                    g_arrayToScan[globalK + fullChunk - 1] +=
+                        g_arrayToScan[globalK + halfChunk - 1];
+                }
+                __syncthreads();
+            }
+
+            // Save the last goober of each block for later, reset to 0 for down-sweep
+            if (threadIdx.x == BLOCK_SIZE - 1) {
+                g_blockTotalSums[blockIdx.x] = g_arrayToScan[globalThreadIndex];
+                g_arrayToScan[globalThreadIndex] = 0;
+            }
+            __syncthreads();
         }
 
         /**
