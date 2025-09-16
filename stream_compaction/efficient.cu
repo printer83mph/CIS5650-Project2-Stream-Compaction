@@ -145,8 +145,9 @@ namespace StreamCompaction {
         /**
          * Performs prefix-sum (aka scan) on idata, storing the result into odata.
          */
-        void scan(int n, int *odata, const int *idata) {
-            timer().startGpuTimer();
+        void scan(int n, int *odata, const int *idata, bool startGpuTimer) {
+            if (startGpuTimer)
+                timer().startGpuTimer();
 
             int maxDepth = ilog2ceil(n);
             int N = 1 << maxDepth;
@@ -207,13 +208,17 @@ namespace StreamCompaction {
             // Copy result back to host
             cudaMemcpy(odata, dev_arrays[0], n * sizeof(int), cudaMemcpyDeviceToHost);
 
-            timer().endGpuTimer();
+            if (startGpuTimer)
+                timer().endGpuTimer();
 
             // Deallocate all device pointers
             for (int *devicePtr : dev_arrays) {
                 cudaFree(devicePtr);
             }
         }
+
+        // by default: run GPU timer
+        void scan(int n, int *odata, const int *idata) { scan(n, odata, idata, true); }
 
         /**
          * Performs stream compaction on idata, storing the result into odata.
@@ -225,10 +230,54 @@ namespace StreamCompaction {
          * @returns      The number of elements remaining after compaction.
          */
         int compact(int n, int *odata, const int *idata) {
+            int blocksPerGrid = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
             timer().startGpuTimer();
-            // TODO
+
+            int *dev_idata;
+            int *dev_bools;
+            int *dev_indices;
+            int *dev_odata;
+            cudaMalloc(&dev_idata, n * sizeof(int));
+            cudaMalloc(&dev_bools, n * sizeof(int));
+            cudaMalloc(&dev_indices, n * sizeof(int));
+            cudaMalloc(&dev_odata, n * sizeof(int));
+
+            // Copy stuffs over to GPU world
+            cudaMemcpy(dev_idata, idata, n * sizeof(int), cudaMemcpyHostToDevice);
+            checkCUDAError("cudaMemcpy from idata to dev_idata failed!");
+
+            // Map our input numbers to bools
+            Common::kernMapToBoolean<<<blocksPerGrid, BLOCK_SIZE>>>(n, dev_bools, dev_idata);
+            cudaDeviceSynchronize();
+            checkCUDAError("kernMapToBoolean failed!");
+
+            // Scan em into dev_indices!!!
+            Efficient::scan(n, dev_indices, dev_bools, false);
+
+            // Now scatter into the output
+            Common::kernScatter<<<blocksPerGrid, BLOCK_SIZE>>>(n, dev_odata, dev_idata, dev_bools,
+                                                               dev_indices);
+            cudaDeviceSynchronize();
+            checkCUDAError("kernScatter failed!");
+
+            cudaMemcpy(odata, dev_odata, n * sizeof(int), cudaMemcpyDeviceToHost);
+            checkCUDAError("cudaMemcpy from dev_odata to odata failed!");
+
+            // Get the count of compacted elements
+            int lastBool, lastIndex;
+            cudaMemcpy(&lastBool, &dev_bools[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
+            cudaMemcpy(&lastIndex, &dev_indices[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
+            int matchingCount = lastIndex + lastBool;
+
             timer().endGpuTimer();
-            return -1;
+
+            cudaFree(dev_idata);
+            cudaFree(dev_bools);
+            cudaFree(dev_indices);
+            cudaFree(dev_odata);
+
+            return matchingCount;
         }
     }
 }
