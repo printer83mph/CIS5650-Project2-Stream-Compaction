@@ -2,7 +2,9 @@
 #include "efficient.cuh"
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <vector>
 
+// this has gotta be a power of 2!
 #define BLOCK_SIZE 256
 
 namespace StreamCompaction {
@@ -18,19 +20,20 @@ namespace StreamCompaction {
          * Perform segmented addition scan on an array, separated into blocks.
          *
          * @param N the number of total elements. Expected to be a power of 2.
+         * @param maxDepth should be ilog2ceil(N). This should just be precomputed.
          * @param g_arrayToScan the full array, in global memory. This will be modified in-place.
          *   This is expected to be of size N.
          * @param g_blockTotalSums where the full sums of each block will be saved.
          *   It is expected to be of size `N / blockDim.x`.
          */
-        __global__ void kernExclusiveScanByBlocks(int N, int *g_arrayToScan,
+        __global__ void kernExclusiveScanByBlocks(int N, int maxDepth, int *g_arrayToScan,
                                                   int *g_blockTotalSums) {
+            // TODO: probably use shared memory to make this faster, instead of pulling from evil
+            // global world...
+
             int blockStartIndex = (blockIdx.x * blockDim.x);
             int localThreadIndex = threadIdx.x;
             int globalThreadIndex = blockStartIndex + localThreadIndex;
-
-            // TODO: is this log2 call ok?
-            int maxDepth = log2(blockDim.x);
 
             // Do awesome upsweep in-place with increasing depth
             for (int d = 0; d < maxDepth; ++d) {
@@ -42,7 +45,7 @@ namespace StreamCompaction {
 
                 if (localThreadIndex < numThreads) {
                     // K is global index of first element of "chunk" we're operating on
-                    int globalK = blockStartIndex + blockStartIndex + localThreadIndex * fullChunk;
+                    int globalK = blockStartIndex + localThreadIndex * fullChunk;
                     g_arrayToScan[globalK + fullChunk - 1] +=
                         g_arrayToScan[globalK + halfChunk - 1];
                 }
@@ -66,7 +69,7 @@ namespace StreamCompaction {
 
                 if (localThreadIndex < numThreads) {
                     // K is global index of first element of "chunk" we're operating on
-                    int globalK = blockStartIndex + blockStartIndex + localThreadIndex * fullChunk;
+                    int globalK = blockStartIndex + localThreadIndex * fullChunk;
 
                     // Copy right value, add left one in-place, then set left to copied value
                     int oldRightValue = g_arrayToScan[globalK + fullChunk - 1];
@@ -79,14 +82,137 @@ namespace StreamCompaction {
         }
 
         /**
+         * Perform exclusive scan on a single block of data.
+         *
+         * @param N the number of elements in the block. Expected to be a power of 2.
+         * @param maxDepth should be ilog2ceil(N). This should just be precomputed.
+         * @param g_data the array to scan in global memory. This will be modified in-place.
+         */
+        __global__ void kernExclusiveScanOneBlock(int N, int maxDepth, int *g_arrayToScan) {
+            // TODO: probably use shared memory to make this faster, instead of pulling from evil
+            // global world...
+
+            int localThreadIndex = threadIdx.x;
+
+            // Do upsweep in-place with increasing depth
+            for (int d = 0; d < maxDepth; ++d) {
+                int halfChunk = 1 << d;
+                int fullChunk = halfChunk << 1;
+
+                // Each layer gets blockSize >> (d + 1) operations
+                int numThreads = blockDim.x / fullChunk;
+
+                if (localThreadIndex < numThreads) {
+                    // K is index of first element of "chunk" we're operating on
+                    int k = localThreadIndex * fullChunk;
+                    g_arrayToScan[k + fullChunk - 1] += g_arrayToScan[k + halfChunk - 1];
+                }
+                __syncthreads();
+            }
+
+            // Reset the last element to 0 for down-sweep
+            if (threadIdx.x == 0) {
+                g_arrayToScan[N - 1] = 0;
+            }
+            __syncthreads();
+
+            // Do downsweep in-place with decreasing depth
+            for (int d = maxDepth - 1; d >= 0; --d) {
+                int halfChunk = 1 << d;
+                int fullChunk = halfChunk << 1;
+
+                // Each layer gets blockSize >> (d + 1) operations
+                int numThreads = blockDim.x / fullChunk;
+
+                if (localThreadIndex < numThreads) {
+                    // K is index of first element of "chunk" we're operating on
+                    int k = localThreadIndex * fullChunk;
+
+                    // Copy right value, add left one in-place, then set left to copied value
+                    int oldRightValue = g_arrayToScan[k + fullChunk - 1];
+                    g_arrayToScan[k + fullChunk - 1] += g_arrayToScan[k + halfChunk - 1];
+                    g_arrayToScan[k + halfChunk - 1] = oldRightValue;
+                }
+                __syncthreads();
+            }
+        }
+
+        __global__ void kernAddChunkedSums(int N, int *g_chunkScannedArray, int *g_blockTotalSums) {
+            int globalThreadIndex = threadIdx.x + (blockIdx.x * blockDim.x);
+            g_chunkScannedArray[globalThreadIndex] += g_blockTotalSums[blockIdx.x];
+        }
+
+        /**
          * Performs prefix-sum (aka scan) on idata, storing the result into odata.
          */
         void scan(int n, int *odata, const int *idata) {
-            // int N = ilog2ceil(n) int
-
             timer().startGpuTimer();
-            // TODO
+
+            int maxDepth = ilog2ceil(n);
+            int N = 1 << maxDepth;
+
+            // Pointers to all the extra scans needed when block size is smaller than N
+            std::vector<int *> dev_arrays;
+
+            // Create device mem pointers with decreasing sizes
+            int currentSize = N;
+            while (currentSize > BLOCK_SIZE) {
+                int *dev_array;
+                cudaMalloc(&dev_array, currentSize * sizeof(int));
+                dev_arrays.push_back(dev_array);
+                currentSize = (currentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            }
+
+            // Allocate one just for the smallest, always occurs
+            int *dev_smallest_array;
+            cudaMalloc(&dev_smallest_array, currentSize * sizeof(int));
+            dev_arrays.push_back(dev_smallest_array);
+
+            // Copy input data to first device array
+            cudaMemcpy(dev_arrays[0], idata, n * sizeof(int), cudaMemcpyHostToDevice);
+            // Fill rest of first array with zeros if n < N
+            if (n < N) {
+                cudaMemset(dev_arrays[0] + n, 0, (N - n) * sizeof(int));
+            }
+
+            // Iterate through arrays from largest to smallest, performing scan on each level
+            currentSize = N;
+            for (int i = 0; i < dev_arrays.size() - 1; ++i) {
+                int blocksPerGrid = (currentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                kernExclusiveScanByBlocks<<<blocksPerGrid, BLOCK_SIZE>>>(
+                    currentSize, ilog2(currentSize), dev_arrays[i], dev_arrays[i + 1]);
+                checkCUDAError("kernExclusiveScanByBlocks failed!");
+                cudaDeviceSynchronize();
+
+                currentSize = (currentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            }
+
+            // Run scan on smallest block of all time
+            kernExclusiveScanOneBlock<<<1, BLOCK_SIZE>>>(currentSize, ilog2(currentSize),
+                                                         dev_smallest_array);
+            checkCUDAError("kernExclusiveScanOneBlock failed!");
+            cudaDeviceSynchronize();
+
+            // Iterate back up through arrays from smallest to largest, adding chunk sums
+            for (int i = dev_arrays.size() - 2; i >= 0; --i) {
+                currentSize *= BLOCK_SIZE;
+
+                int blocksPerGrid = (currentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                kernAddChunkedSums<<<blocksPerGrid, BLOCK_SIZE>>>(currentSize, dev_arrays[i],
+                                                                  dev_arrays[i + 1]);
+                checkCUDAError("kernAddChunkedSums failed!");
+                cudaDeviceSynchronize();
+            }
+
+            // Copy result back to host
+            cudaMemcpy(odata, dev_arrays[0], n * sizeof(int), cudaMemcpyDeviceToHost);
+
             timer().endGpuTimer();
+
+            // Deallocate all device pointers
+            for (int *devicePtr : dev_arrays) {
+                cudaFree(devicePtr);
+            }
         }
 
         /**
