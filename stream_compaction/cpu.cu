@@ -67,6 +67,8 @@ namespace StreamCompaction {
                 if (idata[i]) {
                     matchingMask[i] = 1;
                     totalMatchingCount++;
+                } else {
+                    matchingMask[i] = 0;
                 }
             }
 
