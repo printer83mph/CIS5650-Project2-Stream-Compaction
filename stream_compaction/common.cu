@@ -62,12 +62,12 @@ namespace StreamCompaction {
         /**
          * Dead simple: inverts all elements of input array into output array.
          */
-        __global__ void kernInvert(int n, int *obools, int *ibools) {
+        __global__ void kernInvert(int n, int *bools) {
             int threadIndex = threadIdx.x + (blockIdx.x * blockDim.x);
             if (threadIndex >= n)
                 return;
 
-            obools[threadIndex] = ibools[threadIndex] ^ 1;
+            bools[threadIndex] = bools[threadIndex] ^ 1;
         }
     }
 }
