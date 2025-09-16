@@ -54,6 +54,27 @@ namespace StreamCompaction {
                 g_arrayToScan[globalThreadIndex] = 0;
             }
             __syncthreads();
+
+            // Do awesome downsweep in-place with decreasing depth
+            for (int d = maxDepth - 1; d >= 0; --d) {
+                int halfChunk = 1 << d;
+                int fullChunk = halfChunk << 1;
+
+                // Each layer gets blockSize >> (d + 1) operations
+                int numThreads = blockDim.x / fullChunk;
+
+                if (localThreadIndex < numThreads) {
+                    // K is global index of first element of "chunk" we're operating on
+                    int globalK = blockStartIndex + blockStartIndex + localThreadIndex * fullChunk;
+
+                    // Copy right value, add left one in-place, then set left to copied value
+                    int oldRightValue = g_arrayToScan[globalK + fullChunk - 1];
+                    g_arrayToScan[globalK + fullChunk - 1] +=
+                        g_arrayToScan[globalK + halfChunk - 1];
+                    g_arrayToScan[globalK + halfChunk - 1] = oldRightValue;
+                }
+                __syncthreads();
+            }
         }
 
         /**
