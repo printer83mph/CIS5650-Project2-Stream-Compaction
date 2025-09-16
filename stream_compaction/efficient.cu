@@ -17,9 +17,9 @@ namespace StreamCompaction {
         /**
          * Perform segmented addition scan on an array, separated into blocks.
          *
+         * @param N the number of total elements. Expected to be a power of 2.
          * @param g_arrayToScan the full array, in global memory. This will be modified in-place.
-         *   This is expected to be of size `2^ilog2ceil(N)`, i.e. N or the next power of 2 from N.
-         *
+         *   This is expected to be of size N.
          * @param g_blockTotalSums where the full sums of each block will be saved.
          *   It is expected to be of size `N / blockDim.x`.
          */
@@ -29,7 +29,8 @@ namespace StreamCompaction {
             int localThreadIndex = threadIdx.x;
             int globalThreadIndex = blockStartIndex + localThreadIndex;
 
-            int maxDepth = ceil(log2(blockDim.x));
+            // TODO: is this log2 call ok?
+            int maxDepth = log2(blockDim.x);
 
             // Do awesome upsweep in-place with increasing depth
             for (int d = 0; d < maxDepth; ++d) {
@@ -81,6 +82,8 @@ namespace StreamCompaction {
          * Performs prefix-sum (aka scan) on idata, storing the result into odata.
          */
         void scan(int n, int *odata, const int *idata) {
+            // int N = ilog2ceil(n) int
+
             timer().startGpuTimer();
             // TODO
             timer().endGpuTimer();
