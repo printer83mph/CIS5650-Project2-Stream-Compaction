@@ -146,9 +146,6 @@ namespace StreamCompaction {
          * Performs prefix-sum (aka scan) on idata, storing the result into odata.
          */
         void scan(int n, int *odata, const int *idata, bool startGpuTimer) {
-            if (startGpuTimer)
-                timer().startGpuTimer();
-
             int maxDepth = ilog2ceil(n);
             int N = 1 << maxDepth;
 
@@ -175,6 +172,9 @@ namespace StreamCompaction {
             if (n < N) {
                 cudaMemset(dev_arrays[0] + n, 0, (N - n) * sizeof(int));
             }
+
+            if (startGpuTimer)
+                timer().startGpuTimer();
 
             // Iterate through arrays from largest to smallest, performing scan on each level
             currentSize = N;
@@ -205,11 +205,11 @@ namespace StreamCompaction {
                 cudaDeviceSynchronize();
             }
 
-            // Copy result back to host
-            cudaMemcpy(odata, dev_arrays[0], n * sizeof(int), cudaMemcpyDeviceToHost);
-
             if (startGpuTimer)
                 timer().endGpuTimer();
+
+            // Copy result back to host
+            cudaMemcpy(odata, dev_arrays[0], n * sizeof(int), cudaMemcpyDeviceToHost);
 
             // Deallocate all device pointers
             for (int *devicePtr : dev_arrays) {
@@ -232,8 +232,6 @@ namespace StreamCompaction {
         int compact(int n, int *odata, const int *idata) {
             int blocksPerGrid = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-            timer().startGpuTimer();
-
             int *dev_idata;
             int *dev_bools;
             int *dev_indices;
@@ -246,6 +244,8 @@ namespace StreamCompaction {
             // Copy stuffs over to GPU world
             cudaMemcpy(dev_idata, idata, n * sizeof(int), cudaMemcpyHostToDevice);
             checkCUDAError("cudaMemcpy from idata to dev_idata failed!");
+
+            timer().startGpuTimer();
 
             // Map our input numbers to bools
             Common::kernMapToBoolean<<<blocksPerGrid, BLOCK_SIZE>>>(n, dev_bools, dev_idata);
@@ -261,6 +261,8 @@ namespace StreamCompaction {
             cudaDeviceSynchronize();
             checkCUDAError("kernScatter failed!");
 
+            timer().endGpuTimer();
+
             cudaMemcpy(odata, dev_odata, n * sizeof(int), cudaMemcpyDeviceToHost);
             checkCUDAError("cudaMemcpy from dev_odata to odata failed!");
 
@@ -269,8 +271,6 @@ namespace StreamCompaction {
             cudaMemcpy(&lastBool, &dev_bools[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
             cudaMemcpy(&lastIndex, &dev_indices[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
             int matchingCount = lastIndex + lastBool;
-
-            timer().endGpuTimer();
 
             cudaFree(dev_idata);
             cudaFree(dev_bools);

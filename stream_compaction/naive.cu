@@ -43,8 +43,6 @@ namespace StreamCompaction {
          * Performs prefix-sum (aka scan) on idata, storing the result into odata.
          */
         void scan(int n, int *odata, const int *idata) {
-            timer().startGpuTimer();
-
             dim3 blocksPerGrid = ((n + BLOCK_SIZE - 1) / BLOCK_SIZE);
 
             int *dev_scanA;
@@ -57,9 +55,12 @@ namespace StreamCompaction {
             // Send our input info over to the GPU
             cudaMemcpy(dev_scanA, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
 
+            timer().startGpuTimer();
+
             // Shift things over by one index
             kernShiftForExclusiveScan<<<blocksPerGrid, BLOCK_SIZE>>>(n, dev_scanB, dev_scanA);
             checkCUDAError("kernShiftForExclusiveScan failed!");
+            cudaDeviceSynchronize();
 
             int *src = dev_scanB;
             int *dest = dev_scanA;
@@ -68,6 +69,7 @@ namespace StreamCompaction {
             for (int offset = 1; offset < n; offset *= 2) {
                 kernScanIteration<<<blocksPerGrid, BLOCK_SIZE>>>(n, offset, dest, src);
                 checkCUDAError("kernScanIteration failed!");
+                cudaDeviceSynchronize();
 
                 // Swap src and dest pointers for next iteration
                 int *temp = src;
@@ -75,15 +77,13 @@ namespace StreamCompaction {
                 dest = temp;
             }
 
-            cudaDeviceSynchronize();
+            timer().endGpuTimer();
 
             // Take our output data back to the CPU
             cudaMemcpy(odata, src, sizeof(int) * n, cudaMemcpyDeviceToHost);
 
             cudaFree(dev_scanA);
             cudaFree(dev_scanB);
-
-            timer().endGpuTimer();
         }
     }
 }
