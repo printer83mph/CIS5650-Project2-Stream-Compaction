@@ -3,6 +3,7 @@ set(headers
     "cpu.cuh"
     "naive.cuh"
     "efficient.cuh"
+    "radix.cuh"
     "thrust.cuh"
     )
 
@@ -11,6 +12,7 @@ set(sources
     "cpu.cu"
     "naive.cu"
     "efficient.cu"
+    "radix.cu"
     "thrust.cu"
     )
 
