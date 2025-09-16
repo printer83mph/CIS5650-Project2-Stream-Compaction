@@ -179,7 +179,7 @@ namespace StreamCompaction {
             // Iterate through arrays from largest to smallest, performing scan on each level
             currentSize = N;
             for (int i = 0; i < dev_arrays.size() - 1; ++i) {
-                int blocksPerGrid = (currentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                dim3 blocksPerGrid = (currentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
                 kernExclusiveScanByBlocks<<<blocksPerGrid, BLOCK_SIZE>>>(
                     currentSize, ilog2(currentSize), dev_arrays[i], dev_arrays[i + 1]);
                 checkCUDAError("kernExclusiveScanByBlocks failed!");
@@ -198,7 +198,7 @@ namespace StreamCompaction {
             for (int i = dev_arrays.size() - 2; i >= 0; --i) {
                 currentSize *= BLOCK_SIZE;
 
-                int blocksPerGrid = (currentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                dim3 blocksPerGrid = (currentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
                 kernAddChunkedSums<<<blocksPerGrid, BLOCK_SIZE>>>(currentSize, dev_arrays[i],
                                                                   dev_arrays[i + 1]);
                 checkCUDAError("kernAddChunkedSums failed!");
@@ -230,7 +230,7 @@ namespace StreamCompaction {
          * @returns      The number of elements remaining after compaction.
          */
         int compact(int n, int *odata, const int *idata) {
-            int blocksPerGrid = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            dim3 blocksPerGrid = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
             int *dev_idata;
             int *dev_bools;
