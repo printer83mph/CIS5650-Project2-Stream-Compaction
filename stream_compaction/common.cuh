@@ -37,6 +37,8 @@ namespace StreamCompaction {
 
         __global__ void kernMapToBit(int n, int *bools, const int *idata, int bit);
 
+        __global__ void kernInvert(int n, int *bools);
+
         /**
         * This class is used for timing the performance
         * Uncopyable and unmovable

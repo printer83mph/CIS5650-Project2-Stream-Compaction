@@ -58,5 +58,16 @@ namespace StreamCompaction {
             int bitValue = (idata[threadIndex] >> bit) & 1;
             bools[threadIndex] = bitValue;
         }
+
+        /**
+         * Dead simple: inverts all elements of input array into output array.
+         */
+        __global__ void kernInvert(int n, int *obools, int *ibools) {
+            int threadIndex = threadIdx.x + (blockIdx.x * blockDim.x);
+            if (threadIndex >= n)
+                return;
+
+            obools[threadIndex] = ibools[threadIndex] ^ 1;
+        }
     }
 }
