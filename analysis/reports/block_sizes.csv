@@ -1,0 +1,7 @@
+Block Size,naive scan power-of-two,naive scan non-power-of-two,work-efficient scan power-of-two,work-efficient scan non-power-of-two,thrust scan power-of-two,thrust scan non-power-of-two,work-efficient compact power-of-two,work-efficient compact non-power-of-two,gpu radix sort power-of-two,gpu radix sort non-power-of-two
+32,44.9223,44.8707,22.8508,22.6492,126.103,124.762,20.3392,20.1313,769.149,731.29
+64,18.9844,18.7979,17.8038,17.6314,128.217,126.134,20.3671,20.2151,700.846,666.586
+128,18.2844,18.2291,17.7906,17.6906,126.636,126.379,20.2861,20.2033,703.543,665.463
+256,22.1781,22.3909,22.3147,22.1102,126.392,126.108,20.2939,20.2341,694.202,667.408
+512,18.604,18.5244,17.8165,17.7003,126.769,126.09,21.0513,20.2487,839.969,759.308
+1024,19.472,19.4028,17.8216,17.6353,127.847,125.753,20.4525,20.2652,752.41,674.363
