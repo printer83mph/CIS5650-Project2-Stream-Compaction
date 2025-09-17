@@ -1,11 +1,11 @@
 CUDA Stream Compaction
 ======================
 
-**University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 2**
+**University of Pennsylvania, CIS 5650: GPU Programming and Architecture, Project 2**
 
-* (TODO) YOUR NAME HERE
-  * (TODO) [LinkedIn](), [personal website](), [twitter](), etc.
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* Thomas Shaw
+  * [LinkedIn](https://www.linkedin.com/in/thomas-shaw-54468b222), [personal website](https://tlshaw.me), [GitHub](https://github.com/printer83mph), etc.
+* Tested on: Fedora 42, Ryzen 7 5700x @ 4.67GHz, 32GB, RTX 2070 8GB
 
 ### (TODO: Your README)
 
