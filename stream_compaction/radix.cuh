@@ -3,10 +3,14 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include "common.cuh"
+
 namespace StreamCompaction {
 namespace Radix {
-__global__ void kernScatterRadix(int n, int *odata, const int *idata, const int *bools,
-                                 const int *falseIndices, int totalFalses);
 
-}
+StreamCompaction::Common::PerformanceTimer &timer();
+
+void sort(int n, int *odata, const int *idata);
+
+} // namespace Radix
 } // namespace StreamCompaction
