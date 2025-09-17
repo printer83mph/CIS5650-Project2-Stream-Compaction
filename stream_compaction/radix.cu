@@ -2,6 +2,7 @@
 #include "efficient.cuh"
 #include "radix.cuh"
 
+#include <algorithm>
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -14,6 +15,52 @@ using StreamCompaction::Common::PerformanceTimer;
 PerformanceTimer &timer() {
     static PerformanceTimer timer;
     return timer;
+}
+
+void cpu_sort(int n, int *odata, const int *idata) {
+    int *idata_mut = new int[n];
+    int *odata_mut = odata;
+
+    // copy
+    std::copy(idata, idata + n, idata_mut);
+
+    Radix::timer().startCpuTimer();
+
+    for (int bit = 0; bit < 32; ++bit) {
+        // for each bit, ping-pong
+        int currentIndex = 0;
+
+        for (int i = 0; i < n; ++i) {
+            int shouldPartitionRight = (idata_mut[i] >> bit) & 1;
+            if (shouldPartitionRight)
+                continue;
+
+            odata_mut[currentIndex] = idata_mut[i];
+            currentIndex++;
+        }
+
+        for (int i = 0; i < n; ++i) {
+            int shouldPartitionRight = (idata_mut[i] >> bit) & 1;
+            if (!shouldPartitionRight)
+                continue;
+
+            odata_mut[currentIndex] = idata_mut[i];
+            currentIndex++;
+        }
+
+        int *temp = idata_mut;
+        idata_mut = odata_mut;
+        odata_mut = temp;
+    }
+
+    // Copy final result to odata if pinged to the wrong pong
+    if (idata_mut != odata) {
+        std::copy(idata_mut, idata_mut + n, odata);
+    }
+
+    Radix::timer().endCpuTimer();
+
+    delete[] idata_mut;
 }
 
 /**
