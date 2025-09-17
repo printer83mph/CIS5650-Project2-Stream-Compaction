@@ -46,5 +46,28 @@ namespace StreamCompaction {
             }
         }
 
+        /**
+         * Similar to kernMapToBoolean, but the result (array of bools) is built from the kth bits
+         * of input array elements. Bits are 0-indexed, i.e. kth power of 2.
+         */
+        __global__ void kernMapToBit(int n, int *bools, const int *idata, int bit) {
+            int threadIndex = threadIdx.x + (blockIdx.x * blockDim.x);
+            if (threadIndex >= n)
+                return;
+
+            int bitValue = (idata[threadIndex] >> bit) & 1;
+            bools[threadIndex] = bitValue;
+        }
+
+        /**
+         * Dead simple: inverts all elements of input array into output array.
+         */
+        __global__ void kernInvert(int n, int *bools) {
+            int threadIndex = threadIdx.x + (blockIdx.x * blockDim.x);
+            if (threadIndex >= n)
+                return;
+
+            bools[threadIndex] = bools[threadIndex] ^ 1;
+        }
     }
 }

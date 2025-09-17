@@ -3,11 +3,9 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include <chrono>
 #include <cstdio>
 #include <cstring>
-#include <cmath>
-#include <algorithm>
-#include <chrono>
 #include <stdexcept>
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -36,6 +34,10 @@ namespace StreamCompaction {
 
         __global__ void kernScatter(int n, int *odata,
                 const int *idata, const int *bools, const int *indices);
+
+        __global__ void kernMapToBit(int n, int *bools, const int *idata, int bit);
+
+        __global__ void kernInvert(int n, int *bools);
 
         /**
         * This class is used for timing the performance
