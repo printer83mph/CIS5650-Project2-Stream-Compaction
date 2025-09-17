@@ -50,3 +50,48 @@ def test_optimize_block_sizes():
                 runtime = block_size_and_runtime_by_algorithm[algorithm][i][1]
                 row.append(str(runtime))
             f.write(",".join(row) + "\n")
+
+
+def compare_scan_implementations():
+    array_size_and_runtime_by_algorithm: defaultdict[str, list[tuple[int, int]]] = (
+        defaultdict(list)
+    )
+
+    for array_size_exp in range(18, 27):
+        array_size = pow(2, array_size_exp)
+
+        results = helpers.test_with_params(
+            filename="temp",
+            parameters=helpers.BuildParameters(
+                enable_scan=True,
+                enable_compact=False,
+                enable_radix=False,
+                block_size=128,
+                array_size_pow=array_size_exp,
+            ),
+        )
+
+        for algorithm, runtime in results:
+            array_size_and_runtime_by_algorithm[algorithm].append((array_size, runtime))
+
+    # Create reports directory if it doesn't exist
+    output_path = Path.cwd() / "reports/scan_comparison.csv"
+    output_path.parent.mkdir(exist_ok=True)
+
+    # Get algorithms and array sizes
+    algorithms = list(array_size_and_runtime_by_algorithm.keys())
+    array_sizes = [
+        pair[0] for pair in array_size_and_runtime_by_algorithm[algorithms[0]]
+    ]
+
+    with open(output_path, "w") as f:
+        # Write CSV header
+        f.write("Array Size," + ",".join(algorithms) + "\n")
+
+        # Write each row
+        for i, array_size in enumerate(array_sizes):
+            row = [str(array_size)]
+            for algorithm in algorithms:
+                runtime = array_size_and_runtime_by_algorithm[algorithm][i][1]
+                row.append(str(runtime))
+            f.write(",".join(row) + "\n")
