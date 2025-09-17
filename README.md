@@ -20,6 +20,7 @@ CUDA Stream Compaction
 - Faster scan than CPU!!
 - GPU Radix Sort implementation
   - (tested against CPU version in `main`)
+- Python [analysis module](./analysis/README.md) for spitting out nice CSV files measuring performance
 
 
 ## Performance Analysis
