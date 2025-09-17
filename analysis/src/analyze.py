@@ -9,7 +9,7 @@ def test_optimize_block_sizes():
         defaultdict(list)
     )
 
-    for block_size_exp in range(4, 11):
+    for block_size_exp in range(5, 11):
         block_size = pow(2, block_size_exp)
 
         results = helpers.test_with_params(
@@ -19,7 +19,7 @@ def test_optimize_block_sizes():
                 enable_compact=True,
                 enable_radix=True,
                 block_size=block_size,
-                array_size_pow=20,
+                array_size_pow=24,
             ),
         )
 
@@ -28,6 +28,7 @@ def test_optimize_block_sizes():
 
     # Print CSV header
     algorithms = list(block_size_and_runtime_by_algorithm.keys())
+    algorithms = [alg for alg in algorithms if "cpu" not in alg.lower()]
 
     # Get all block sizes (assuming they're the same for all algorithms)
     block_sizes = [
