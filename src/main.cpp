@@ -205,8 +205,6 @@ int main(int argresult, char *argv[]) {
 
 #ifdef _WIN32
     system("pause"); // stop Win32 console from closing on exit
-#else
-    system("read -n1 -r -p 'Press any key to continue...'");
 #endif
     delete[] sourceData;
     delete[] referenceResult;
