@@ -53,9 +53,9 @@ See below the performance change over different array sizes, when aligned with p
 
 Our Work-Efficient GPU Scan outperforms the Naive one at almost all array sizes. This is to be expected.
 
-The CPU scan actually keeps up pretty well, but eventually falls significantly behind both GPU implementations.
+The CPU eventually falls behind the work-efficient solution.
 
-It seems that Thrust is generally much slower than our solutions. This may be due to some overhead loading external libraries, or doing unnecessary copying which adds an extra O(n) time. Further research could be done here.
+It seems that Thrust is generally much faster than our solutions. What black magic are they working?
 
 ### Test output at n = 2^27
 

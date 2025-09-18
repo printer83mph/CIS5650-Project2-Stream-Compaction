@@ -57,7 +57,7 @@ def compare_scan_implementations():
         defaultdict(list)
     )
 
-    for array_size_exp in range(18, 29):
+    for array_size_exp in range(18, 30):
         array_size = pow(2, array_size_exp)
 
         results = helpers.test_with_params(
