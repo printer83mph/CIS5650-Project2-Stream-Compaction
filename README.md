@@ -3,7 +3,7 @@ CUDA Stream Compaction
 
 ![](img/graphs/scan_performance_nonpow2.png)
 
-(why is thrust so slow???)
+Q: (why is thrust so slow???) A: because I forgot to build binaries in release mode.
 
 **University of Pennsylvania, CIS 5650: GPU Programming and Architecture, Project 2**
 
