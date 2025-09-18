@@ -57,6 +57,18 @@ The CPU eventually falls behind the work-efficient solution.
 
 It seems that Thrust is generally much faster than our solutions. What black magic are they working?
 
+### NSight analysis
+
+![](img/graphs/nsight_work_efficient.png)
+
+The above is our timeline view in NSight Systems.
+
+![](img/graphs/nsight_thrust.png)
+
+And the above is thrust.
+
+It seems they perform the entire operation inside a single kernel. They likely utilize shared memory access patterns, or somehow improve order-of-operations when it comes to memory access and computations.
+
 ### Test output at n = 2^27
 
 ```
